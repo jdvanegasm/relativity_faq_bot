@@ -6,3 +6,7 @@
 
 # cache
 src/__pycache__
+
+# google credentials
+client_secret_814068644431-mg4kmks3eqq6tshh1m7i7023r0fv1hul.apps.googleusercontent.com.json
+token.json

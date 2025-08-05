@@ -1,44 +1,45 @@
-
 """
 sheets.py
-tiny helper to append contact info to a google sheet
-
-requires:
-  • .env with:
-        GSHEET_CREDS_JSON=/abs/path/to/service_account.json
-        GSHEET_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-  • creds file generated from gcp → service account → json key
-    share the target sheet with that service account email.
+small helper that pushes contact info to a google sheet via user-oauth
 """
 
 from __future__ import annotations
-
 import datetime as dt
 import os
-import pathlib
 import sys
-from typing import List
+import pathlib
 
 import gspread
-from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# grab env vars
-creds_path = os.getenv("GSHEET_CREDS_JSON")
-sheet_id   = os.getenv("GSHEET_ID")
-if not creds_path or not sheet_id:
-    sys.exit("sheets env vars missing – add GSHEET_CREDS_JSON and GSHEET_ID to .env")
+# env vars
+client_file = os.getenv("GS_CLIENT_OAUTH", "gcp_client_oauth.json")
+token_file  = os.getenv("GS_TOKEN", "token.json")
+sheet_id    = os.getenv("GSHEET_ID")
 
-# scopes & client -------------------------------------------------
-_scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_file(creds_path, scopes=_scopes)
-gc = gspread.authorize(creds)
-ws = gc.open_by_key(sheet_id).sheet1          # first tab is enough
+if not sheet_id:
+    sys.exit("gsheet_id missing in .env – add it before running")
 
-# public api ------------------------------------------------------
+if not os.path.isabs(client_file):
+    repo_root = pathlib.Path(__file__).resolve().parent.parent
+    client_file = str(repo_root / client_file)
+
+# same for token file (optional but handy)
+if not os.path.isabs(token_file):
+    token_file = str(pathlib.Path(__file__).resolve().parent.parent / token_file)
+
+# oauth 
+gc = gspread.oauth(
+    credentials_filename=client_file,
+    authorized_user_filename=token_file,
+)
+
+ws = gc.open_by_key(sheet_id).sheet1
+
+# public gateway
 def log_contact(name: str, email: str, org: str, inquiry: str) -> None:
-    """append one row with utc timestamp + contact info + question"""
+    """append one row utc_timestamp | name | email | org | inquiry"""
     ts = dt.datetime.utcnow().isoformat(sep=" ", timespec="seconds")
     ws.append_row([ts, name, email, org, inquiry])
